@@ -14,6 +14,11 @@ function createApp() {
   app.use(cors());
   app.use(express.json());
 
+  // ✅ Root route (health check)
+app.get("/", (req, res) => {
+  res.send("Finance Dashboard Backend is running 🚀");
+});
+
   // Swagger docs (public)
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

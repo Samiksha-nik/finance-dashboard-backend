@@ -1,5 +1,4 @@
-// Placeholder for Mongoose models.
-// Add model schemas here as the project grows.
+const User = require("./User");
 
-module.exports = {};
+module.exports = { User };
 

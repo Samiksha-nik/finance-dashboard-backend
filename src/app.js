@@ -4,6 +4,8 @@ const cors = require("cors");
 const routes = require("./routes");
 const { globalErrorHandler } = require("./middleware/errorHandler");
 const { notFoundHandler } = require("./middleware/notFound");
+const swaggerUi = require("swagger-ui-express");
+const { swaggerSpec } = require("./swagger");
 
 function createApp() {
   const app = express();
@@ -11,6 +13,9 @@ function createApp() {
   // Middleware
   app.use(cors());
   app.use(express.json());
+
+  // Swagger docs (public)
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   // Routes
   app.use(routes);

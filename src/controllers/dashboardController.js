@@ -9,8 +9,10 @@ function getUserId(req) {
 }
 
 function buildMatch(req) {
-  if (isAdmin(req)) return {};
-  return { user: getUserId(req) };
+  // Always exclude soft-deleted records.
+  const base = { isDeleted: false };
+  if (isAdmin(req)) return base;
+  return { ...base, user: getUserId(req) };
 }
 
 async function summary(req, res, next) {

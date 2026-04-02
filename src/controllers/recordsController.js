@@ -78,7 +78,8 @@ async function listRecords(req, res, next) {
 
     const { date, type, category, page, limit, search } = req.query || {};
 
-    const filter = {};
+    // Always exclude soft-deleted records from GET queries.
+    const filter = { isDeleted: false };
 
     // Restrict non-admin users to their own records.
     if (!isAdmin(req)) filter.user = userId;
@@ -159,7 +160,7 @@ async function updateRecord(req, res, next) {
       throw new HttpError(400, "Invalid record id", "VALIDATION_ID");
     }
 
-    const record = await FinancialRecord.findById(id);
+    const record = await FinancialRecord.findOne({ _id: id, isDeleted: false });
     if (!record) throw new HttpError(404, "Record not found", "RECORD_NOT_FOUND");
 
     const admin = isAdmin(req);
@@ -236,7 +237,8 @@ async function deleteRecord(req, res, next) {
     const record = await FinancialRecord.findById(id);
     if (!record) throw new HttpError(404, "Record not found", "RECORD_NOT_FOUND");
 
-    await FinancialRecord.findByIdAndDelete(id);
+    record.isDeleted = true;
+    await record.save();
 
     res.status(200).json({ success: true });
   } catch (err) {

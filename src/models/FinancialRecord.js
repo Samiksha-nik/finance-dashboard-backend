@@ -13,6 +13,8 @@ const financialRecordSchema = new mongoose.Schema(
     category: { type: String, required: true, trim: true },
     date: { type: Date, required: true },
     note: { type: String, default: "", trim: true },
+    // Soft delete flag.
+    isDeleted: { type: Boolean, default: false, index: true },
   },
   { timestamps: true }
 );

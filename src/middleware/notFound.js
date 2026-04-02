@@ -1,5 +1,7 @@
-function notFoundHandler(req, res) {
-  res.status(404).json({ error: "Not Found" });
+const { HttpError } = require("../utils/httpError");
+
+function notFoundHandler(req, res, next) {
+  return next(new HttpError(404, "Not Found", "NOT_FOUND"));
 }
 
 module.exports = { notFoundHandler };

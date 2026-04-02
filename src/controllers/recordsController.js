@@ -1,6 +1,8 @@
 const mongoose = require("mongoose");
 
 const { FinancialRecord } = require("../models");
+const { HttpError } = require("../utils/httpError");
+const { isNonEmptyString, toLowerEnum } = require("../utils/validation");
 
 function escapeRegex(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -32,13 +34,36 @@ async function createRecord(req, res, next) {
     const userId = getUserId(req);
     const { amount, type, category, date, note } = req.body || {};
 
+    const parsedAmount = typeof amount === "undefined" ? NaN : Number(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
+      throw new HttpError(400, "Amount must be a non-negative number", "VALIDATION_AMOUNT");
+    }
+
+    const normalizedType = toLowerEnum(type, ["income", "expense"]);
+    if (!normalizedType) {
+      throw new HttpError(400, "Type must be income or expense", "VALIDATION_TYPE");
+    }
+
+    if (!isNonEmptyString(category)) {
+      throw new HttpError(400, "Category is required", "VALIDATION_CATEGORY");
+    }
+
+    const parsedDate = date instanceof Date ? date : new Date(date);
+    if (!(parsedDate instanceof Date) || Number.isNaN(parsedDate.getTime())) {
+      throw new HttpError(400, "Valid date is required", "VALIDATION_DATE");
+    }
+
+    if (typeof note !== "undefined" && typeof note !== "string") {
+      throw new HttpError(400, "Note must be a string", "VALIDATION_NOTE");
+    }
+
     const record = await FinancialRecord.create({
       user: userId,
-      amount,
-      type,
+      amount: parsedAmount,
+      type: normalizedType,
       category,
-      date,
-      note,
+      date: parsedDate,
+      note: typeof note === "string" ? note : undefined,
     });
 
     res.status(201).json(record);
@@ -58,18 +83,23 @@ async function listRecords(req, res, next) {
     // Restrict non-admin users to their own records.
     if (!isAdmin(req)) filter.user = userId;
 
-    if (type) filter.type = String(type).toLowerCase();
+    if (type) {
+      const normalizedType = toLowerEnum(type, ["income", "expense"]);
+      if (!normalizedType) {
+        throw new HttpError(400, "Type must be income or expense", "VALIDATION_TYPE");
+      }
+      filter.type = normalizedType;
+    }
 
     if (category) {
       const clean = String(category).trim();
-      if (clean) {
-        filter.category = new RegExp(`^${escapeRegex(clean)}$`, "i");
-      }
+      if (!clean) throw new HttpError(400, "Category cannot be empty", "VALIDATION_CATEGORY");
+      filter.category = new RegExp(`^${escapeRegex(clean)}$`, "i");
     }
 
     if (date) {
       const range = parseISODateToRange(String(date));
-      if (!range) return res.status(400).json({ error: "Invalid date" });
+      if (!range) throw new HttpError(400, "Invalid date", "VALIDATION_DATE");
       filter.date = { $gte: range.start, $lte: range.end };
     }
 
@@ -87,24 +117,66 @@ async function updateRecord(req, res, next) {
     const userId = getUserId(req);
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: "Invalid record id" });
+      throw new HttpError(400, "Invalid record id", "VALIDATION_ID");
     }
 
     const record = await FinancialRecord.findById(id);
-    if (!record) return res.status(404).json({ error: "Record not found" });
+    if (!record) throw new HttpError(404, "Record not found", "RECORD_NOT_FOUND");
 
     const admin = isAdmin(req);
     const owner = String(record.user) === String(userId);
 
-    if (!admin && !owner) return res.status(403).json({ error: "Forbidden" });
+    if (!admin && !owner) throw new HttpError(403, "Forbidden", "FORBIDDEN");
 
     const { amount, type, category, date, note } = req.body || {};
 
-    if (typeof amount !== "undefined") record.amount = amount;
-    if (typeof type !== "undefined") record.type = type;
-    if (typeof category !== "undefined") record.category = category;
-    if (typeof date !== "undefined") record.date = date;
-    if (typeof note !== "undefined") record.note = note;
+    if (
+      typeof amount === "undefined" &&
+      typeof type === "undefined" &&
+      typeof category === "undefined" &&
+      typeof date === "undefined" &&
+      typeof note === "undefined"
+    ) {
+      throw new HttpError(400, "No fields provided to update", "NO_UPDATE_FIELDS");
+    }
+
+    if (typeof amount !== "undefined") {
+      const parsedAmount = Number(amount);
+      if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
+        throw new HttpError(400, "Amount must be a non-negative number", "VALIDATION_AMOUNT");
+      }
+      record.amount = parsedAmount;
+    }
+
+    if (typeof type !== "undefined") {
+      const normalizedType = toLowerEnum(type, ["income", "expense"]);
+      if (!normalizedType) {
+        throw new HttpError(400, "Type must be income or expense", "VALIDATION_TYPE");
+      }
+      record.type = normalizedType;
+    }
+
+    if (typeof category !== "undefined") {
+      if (!isNonEmptyString(category)) {
+        throw new HttpError(400, "Category cannot be empty", "VALIDATION_CATEGORY");
+      }
+      record.category = category;
+    }
+
+    if (typeof date !== "undefined") {
+      const parsedDate = date instanceof Date ? date : new Date(date);
+      if (!(parsedDate instanceof Date) || Number.isNaN(parsedDate.getTime())) {
+        throw new HttpError(400, "Valid date is required", "VALIDATION_DATE");
+      }
+      record.date = parsedDate;
+    }
+
+    if (typeof note !== "undefined") {
+      if (typeof note !== "string") {
+        throw new HttpError(400, "Note must be a string", "VALIDATION_NOTE");
+      }
+      record.note = note;
+    }
 
     await record.save();
 
@@ -119,11 +191,11 @@ async function deleteRecord(req, res, next) {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: "Invalid record id" });
+      throw new HttpError(400, "Invalid record id", "VALIDATION_ID");
     }
 
     const record = await FinancialRecord.findById(id);
-    if (!record) return res.status(404).json({ error: "Record not found" });
+    if (!record) throw new HttpError(404, "Record not found", "RECORD_NOT_FOUND");
 
     await FinancialRecord.findByIdAndDelete(id);
 

@@ -1,3 +1,5 @@
+const { HttpError } = require("../utils/httpError");
+
 function authorizeRoles(allowedRoles) {
   const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
   const allowed = new Set(roles.filter(Boolean).map((r) => String(r).toLowerCase()));
@@ -6,7 +8,7 @@ function authorizeRoles(allowedRoles) {
     const userRole = req?.user?.role ? String(req.user.role).toLowerCase() : null;
 
     if (!userRole || !allowed.has(userRole)) {
-      return res.status(403).json({ error: "Forbidden" });
+      return next(new HttpError(403, "Forbidden", "FORBIDDEN"));
     }
 
     next();

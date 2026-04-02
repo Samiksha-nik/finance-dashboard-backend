@@ -1,17 +1,18 @@
 const jwt = require("jsonwebtoken");
 
 const { JWT_SECRET } = require("../utils/env");
+const { HttpError } = require("../utils/httpError");
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || typeof authHeader !== "string") {
-    return res.status(401).json({ error: "Missing Authorization header" });
+    return next(new HttpError(401, "Missing Authorization header", "AUTH_MISSING"));
   }
 
   const [scheme, token] = authHeader.split(" ");
   if (scheme !== "Bearer" || !token) {
-    return res.status(401).json({ error: "Invalid Authorization header" });
+    return next(new HttpError(401, "Invalid Authorization header", "AUTH_INVALID"));
   }
 
   try {
@@ -19,7 +20,9 @@ function authMiddleware(req, res, next) {
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(401).json({ error: "Invalid or expired token" });
+    return next(
+      new HttpError(401, "Invalid or expired token", "AUTH_INVALID_TOKEN")
+    );
   }
 }
 

@@ -1,19 +1,17 @@
-const express = require("express");
-require("dotenv").config();
+const { PORT } = require("./src/utils/env");
+const { connectMongo } = require("./src/utils/db");
+const { createApp } = require("./src/app");
 
-const app = express();
+async function startServer() {
+  await connectMongo();
+  const app = createApp();
+  app.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+}
 
-app.use(express.json());
-
-// Simple health check route.
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
+startServer().catch((err) => {
+  console.error("Failed to start server:", err?.message || err);
+  process.exit(1);
 });
 
-const PORT = process.env.PORT || 3000;
+module.exports = { startServer };
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
-
-module.exports = app;

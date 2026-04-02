@@ -6,7 +6,10 @@ const swaggerSpec = {
     description:
       "Authentication, financial records CRUD, and dashboard aggregations.",
   },
-  servers: [{ url: "http://localhost:3000" }],
+  servers: [
+    { url: "http://localhost:3000", description: "Local server" },
+    { url: "https://finance-dashboard-backend-ttl.onrender.com", description: "Production server" }
+  ],
   tags: [
     { name: "Auth" },
     { name: "Records" },

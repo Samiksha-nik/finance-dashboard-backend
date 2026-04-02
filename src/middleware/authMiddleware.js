@@ -2,8 +2,10 @@ const jwt = require("jsonwebtoken");
 
 const { JWT_SECRET } = require("../utils/env");
 const { HttpError } = require("../utils/httpError");
+const { AccessTokenBlacklist } = require("../models");
+const { hashToken } = require("../utils/tokenHash");
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || typeof authHeader !== "string") {
@@ -17,6 +19,21 @@ function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded?.tokenType !== "access") {
+      return next(new HttpError(401, "Invalid token type", "AUTH_INVALID_TYPE"));
+    }
+
+    const tokenHash = hashToken(token);
+    const blacklisted = await AccessTokenBlacklist.findOne({
+      tokenHash,
+      expiresAt: { $gt: new Date() },
+      revokedAt: null,
+    });
+
+    if (blacklisted) {
+      return next(new HttpError(401, "Token has been logged out", "AUTH_BLACKLISTED"));
+    }
+
     req.user = decoded;
     next();
   } catch (err) {

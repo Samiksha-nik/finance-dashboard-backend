@@ -16,8 +16,19 @@ function requiredEnv(name) {
 
 const MONGO_URI = requiredEnv("MONGO_URI");
 
+const JWT_SECRET = requiredEnv("JWT_SECRET");
+
+const ACCESS_TOKEN_EXPIRES_IN = process.env.ACCESS_TOKEN_EXPIRES_IN || "1h";
+const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || "30d";
+const REFRESH_TOKEN_SECRET =
+  process.env.REFRESH_TOKEN_SECRET || JWT_SECRET;
+
 module.exports = {
   PORT,
   MONGO_URI,
+  JWT_SECRET,
+  ACCESS_TOKEN_EXPIRES_IN,
+  REFRESH_TOKEN_EXPIRES_IN,
+  REFRESH_TOKEN_SECRET,
 };
 

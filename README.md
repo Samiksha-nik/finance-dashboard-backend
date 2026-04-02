@@ -162,8 +162,11 @@ Access control is implemented using middleware that checks the user’s role bef
 
 ##  API Documentation
 
-Swagger documentation available at:
-http://localhost:3000/api-docs
+##  Live API
+https://finance-dashboard-backend-ttl.onrender.com
+
+##  API Documentation
+https://finance-dashboard-backend-ttl.onrender.com/api-docs
 
 ---
 
@@ -217,6 +220,8 @@ APIs were tested using:
 * Frontend dashboard integration
 
 ---
+
+
 
 ##  Conclusion
 

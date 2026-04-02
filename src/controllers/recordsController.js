@@ -76,7 +76,7 @@ async function listRecords(req, res, next) {
   try {
     const userId = getUserId(req);
 
-    const { date, type, category } = req.query || {};
+    const { date, type, category, page, limit, search } = req.query || {};
 
     const filter = {};
 
@@ -103,9 +103,48 @@ async function listRecords(req, res, next) {
       filter.date = { $gte: range.start, $lte: range.end };
     }
 
-    const records = await FinancialRecord.find(filter).sort({ date: -1, createdAt: -1 });
+    const pageNum = page ? Number(page) : 1;
+    const limitNum = limit ? Number(limit) : 10;
 
-    res.status(200).json(records);
+    if (!Number.isFinite(pageNum) || !Number.isInteger(pageNum) || pageNum < 1) {
+      throw new HttpError(400, "Invalid `page`", "VALIDATION_PAGE");
+    }
+    if (
+      !Number.isFinite(limitNum) ||
+      !Number.isInteger(limitNum) ||
+      limitNum < 1 ||
+      limitNum > 100
+    ) {
+      throw new HttpError(400, "Invalid `limit` (1-100)", "VALIDATION_LIMIT");
+    }
+
+    if (search) {
+      const clean = String(search).trim();
+      if (clean) {
+        const re = new RegExp(escapeRegex(clean), "i");
+        filter.$or = [{ category: re }, { note: re }];
+      }
+    }
+
+    const skip = (pageNum - 1) * limitNum;
+
+    const [total, records] = await Promise.all([
+      FinancialRecord.countDocuments(filter),
+      FinancialRecord.find(filter)
+        .sort({ date: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum),
+    ]);
+
+    res.status(200).json({
+      records,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum) || 0,
+      },
+    });
   } catch (err) {
     return next(err);
   }
